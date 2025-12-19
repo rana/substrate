@@ -45,10 +45,9 @@ class TestCommandExecution:
         engine = ExecutionEngine(tmp_path)
 
         # Use Python to write to stderr
-        result = engine.run_command([
-            sys.executable, "-c",
-            "import sys; sys.stderr.write('error output')"
-        ])
+        result = engine.run_command(
+            [sys.executable, "-c", "import sys; sys.stderr.write('error output')"]
+        )
 
         assert result.exit_code == 0
         assert "error output" in result.stderr

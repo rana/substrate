@@ -5,7 +5,6 @@ All authorization decisions are logged to events.ndjson.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
@@ -81,6 +80,7 @@ class PermissionGate:
         self._current_level = level
         self._log_event(
             "permission_level_changed",
+            None,
             {
                 "old_level": old_level.value,
                 "new_level": level.value,
@@ -96,7 +96,6 @@ class PermissionGate:
         Returns:
             AuthorizationResult with decision and explanation
         """
-        # Check if tool exists
         if tool_name not in self._registry:
             result = AuthorizationResult(
                 authorized=False,
@@ -134,26 +133,28 @@ class PermissionGate:
 
     def _log_authorization(self, result: AuthorizationResult) -> None:
         """Log an authorization decision to events.ndjson."""
-        self._log_event("authorization_check", result.to_dict())
+        self._log_event("authorization_check", None, result.to_dict())
 
-    def _log_event(self, event_type: str, data: dict[str, Any]) -> None:
+    def _log_event(self, event: str, node_id: str | None, payload: dict[str, Any]) -> None:
         """Append an event to the event log.
 
         Events are NDJSON format per design docs.
+        Uses same format as EventLog: ts, node_id, event, payload.
         """
         if self._event_log_path is None:
             return
 
         import json
+        from datetime import UTC, datetime
 
-        event = {
-            "timestamp": datetime.now(UTC).isoformat(),
-            "type": event_type,
-            "data": data,
+        record = {
+            "ts": datetime.now(UTC).isoformat(),
+            "node_id": node_id,
+            "event": event,
+            "payload": payload,
         }
 
-        # Ensure parent directory exists
         self._event_log_path.parent.mkdir(parents=True, exist_ok=True)
 
         with open(self._event_log_path, "a") as f:
-            f.write(json.dumps(event) + "\n")
+            f.write(json.dumps(record) + "\n")

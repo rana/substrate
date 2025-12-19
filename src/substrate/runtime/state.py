@@ -14,6 +14,8 @@ Manages the .substrate directory structure:
             events.ndjson
 """
 
+from __future__ import annotations
+
 import json
 import secrets
 import shutil
@@ -208,6 +210,22 @@ class SubstrateState:
             data: dict[str, Any] = json.load(f)
         return NodeRecord.from_dict(data)
 
+    def save_node(self, node: NodeRecord) -> None:
+        """Save a node record to disk.
+
+        Args:
+            node: Node record to save.
+        """
+        self._write_node(node)
+
+    def save_active(self, active: ActiveState) -> None:
+        """Save active state to disk.
+
+        Args:
+            active: Active state to save.
+        """
+        self._write_active(active)
+
     def list_nodes(self) -> list[str]:
         """List all node IDs in the workspace."""
         if not self._nodes_dir.exists():
@@ -229,11 +247,9 @@ class SubstrateState:
         if node is None:
             return self._workspaces_dir / node_id
 
-        # Root node uses repository root
         if node.parent_node_id is None:
             return self._root
 
-        # Child nodes use workspace copies
         return self._workspaces_dir / node_id
 
     def create_branch(self, parent_node_id: str) -> tuple[bool, str, str | None]:
@@ -251,18 +267,14 @@ class SubstrateState:
         if parent_node is None:
             return False, f"Parent node {parent_node_id} not found", None
 
-        # Generate new node ID
         new_node_id = generate_node_id()
         now = utc_now_iso()
 
-        # Determine source workspace path
         source_workspace = self.get_workspace_path(parent_node_id)
 
-        # Create workspace copy
         new_workspace_path = self._workspaces_dir / new_node_id
         self._copy_workspace(source_workspace, new_workspace_path)
 
-        # Create new node record
         new_node = NodeRecord(
             node_id=new_node_id,
             parent_node_id=parent_node_id,
@@ -278,7 +290,6 @@ class SubstrateState:
         )
         self._write_node(new_node)
 
-        # Update active state
         active = ActiveState(
             active_node_id=new_node_id,
             active_workspace_path=str(new_workspace_path),
@@ -286,7 +297,6 @@ class SubstrateState:
         )
         self._write_active(active)
 
-        # Log event
         self.event_log.append(
             event="branch",
             node_id=new_node_id,
@@ -316,15 +326,12 @@ class SubstrateState:
         now = utc_now_iso()
         workspace_path = self.get_workspace_path(target_node_id)
 
-        # Verify workspace exists
         if not workspace_path.exists():
             return False, f"Workspace for node {target_node_id} not found at {workspace_path}"
 
-        # Get current active for logging
         current_active = self.load_active()
         previous_node_id = current_active.active_node_id if current_active else None
 
-        # Update active state
         active = ActiveState(
             active_node_id=target_node_id,
             active_workspace_path=str(workspace_path),
@@ -332,7 +339,6 @@ class SubstrateState:
         )
         self._write_active(active)
 
-        # Log event
         self.event_log.append(
             event="rollback",
             node_id=target_node_id,
@@ -365,11 +371,9 @@ class SubstrateState:
         now = utc_now_iso()
         workspace_path = self.get_workspace_path(target_node_id)
 
-        # Verify workspace exists
         if not workspace_path.exists():
             return False, f"Workspace for node {target_node_id} not found at {workspace_path}"
 
-        # Update node record with promotion status
         promoted_node = NodeRecord(
             node_id=target_node.node_id,
             parent_node_id=target_node.parent_node_id,
@@ -385,7 +389,6 @@ class SubstrateState:
         )
         self._write_node(promoted_node)
 
-        # Update active state
         active = ActiveState(
             active_node_id=target_node_id,
             active_workspace_path=str(workspace_path),
@@ -393,7 +396,6 @@ class SubstrateState:
         )
         self._write_active(active)
 
-        # Log event
         self.event_log.append(
             event="promote",
             node_id=target_node_id,
@@ -435,10 +437,8 @@ class SubstrateState:
         if not workspace_b.exists():
             return False, f"Workspace for node {node_b_id} not found", None
 
-        # Collect file differences
         comparison = self._compute_diff_stats(workspace_a, workspace_b)
 
-        # Log event
         self.event_log.append(
             event="compare",
             node_id=None,
@@ -466,7 +466,6 @@ class SubstrateState:
         destination.mkdir(parents=True, exist_ok=True)
 
         for item in source.iterdir():
-            # Skip .substrate directory
             if item.name == SUBSTRATE_DIR:
                 continue
 
@@ -505,7 +504,6 @@ class SubstrateState:
             elif in_b and not in_a:
                 only_in_b.append(rel_path)
             else:
-                # Both exist, compare contents
                 path_a = workspace_a / rel_path
                 path_b = workspace_b / rel_path
 
@@ -530,7 +528,6 @@ class SubstrateState:
         for path in workspace.rglob("*"):
             if path.is_file():
                 rel_path = path.relative_to(workspace)
-                # Skip .substrate directory
                 if rel_path.parts and rel_path.parts[0] == SUBSTRATE_DIR:
                     continue
                 files.add(str(rel_path))

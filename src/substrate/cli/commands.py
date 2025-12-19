@@ -4,11 +4,17 @@ Each command is a function that returns an exit code.
 Commands are explicit, logged, and side-effect free where possible.
 """
 
+from __future__ import annotations
+
 import sys
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 from substrate.runtime.state import SubstrateState
-from substrate.runtime.types import PermissionLevel
+from substrate.runtime.types import NodeRecord, PermissionLevel
+
+if TYPE_CHECKING:
+    from substrate.iteration.proposal import StubProposal
 
 
 def init_command(workspace_path: Path) -> int:
@@ -248,6 +254,134 @@ def compare_command(workspace_path: Path, node_a_id: str, node_b_id: str) -> int
         print("\nWorkspaces are identical.")
 
     return 0
+
+
+def orient_command(workspace_path: Path, directive: str) -> int:
+    """Set or update the task directive for the active node.
+
+    Updates the directive field of the current node and logs the orientation.
+
+    Args:
+        workspace_path: Root directory for the workspace.
+        directive: Task directive text.
+
+    Returns:
+        Exit code (0 for success, 1 for failure).
+    """
+    state = SubstrateState(workspace_path)
+
+    if not state.is_initialized():
+        print("Error: Substrate not initialized", file=sys.stderr)
+        print(f"Run 'sub init' in {workspace_path} first", file=sys.stderr)
+        return 1
+
+    active = state.load_active()
+    if active is None:
+        print("Error: Failed to load active state", file=sys.stderr)
+        return 1
+
+    node = state.load_node(active.active_node_id)
+    if node is None:
+        print(f"Error: Node {active.active_node_id} not found", file=sys.stderr)
+        return 1
+
+    # Update node with new directive
+    updated_node = NodeRecord(
+        node_id=node.node_id,
+        parent_node_id=node.parent_node_id,
+        created_at=node.created_at,
+        mode=node.mode,
+        directive=directive,
+        workspace_path=node.workspace_path,
+        patch_path=node.patch_path,
+        oracle_summary=node.oracle_summary,
+        permissions_snapshot=node.permissions_snapshot,
+        promotion_status=node.promotion_status,
+        notes=node.notes,
+    )
+    state.save_node(updated_node)
+
+    # Log orientation
+    state.event_log.append(
+        event="orient",
+        node_id=node.node_id,
+        payload={"directive": directive},
+    )
+
+    print(f"Oriented node {node.node_id}")
+    print(f"Directive: {directive}")
+    return 0
+
+
+def step_command(
+    workspace_path: Path,
+    proposal_type: str = "pytest",
+) -> int:
+    """Execute a single iteration step.
+
+    Runs the full iteration loop: orient → propose → authorize →
+    execute → observe → reconcile → decide.
+
+    Creates a new node with the results.
+
+    Args:
+        workspace_path: Root directory for the workspace.
+        proposal_type: Type of proposal stub to use (pytest, ruff, pyright).
+
+    Returns:
+        Exit code (0 for success/complete, 1 for failure/denied).
+    """
+    state = SubstrateState(workspace_path)
+
+    if not state.is_initialized():
+        print("Error: Substrate not initialized", file=sys.stderr)
+        print(f"Run 'sub init' in {workspace_path} first", file=sys.stderr)
+        return 1
+
+    # Select proposal stub
+    from substrate.iteration.proposal import ProposalStub
+
+    proposal_stub: StubProposal
+    if proposal_type == "ruff":
+        proposal_stub = ProposalStub.run_ruff_check()
+    elif proposal_type == "pyright":
+        proposal_stub = ProposalStub.run_pyright()
+    else:
+        proposal_stub = ProposalStub.run_pytest()
+
+    # Create and run iteration loop
+    from substrate.iteration.loop import IterationLoop
+    from substrate.tools.schemas import PermissionLevel as ToolPermissionLevel
+
+    loop = IterationLoop(
+        state=state,
+        permission_level=ToolPermissionLevel.ACT_EXTERNAL,
+        proposal_stub=proposal_stub,
+    )
+
+    print(f"Executing step with proposal: {proposal_stub.action}")
+    print("-" * 40)
+
+    result = loop.step()
+
+    # Print phase results
+    for pr in result.phase_results:
+        status_icon = "✓" if pr.status.value == "success" else "✗"
+        print(f"  {status_icon} {pr.phase_name}: {pr.status.value}")
+        if pr.error:
+            print(f"    Error: {pr.error}")
+
+    print("-" * 40)
+    print(f"Decision: {result.decision}")
+
+    if result.new_node_id:
+        print(f"New node: {result.new_node_id}")
+
+    if result.error:
+        print(f"Error: {result.error}", file=sys.stderr)
+
+    # Return 0 for complete, 1 for anything else
+    return 0 if result.decision == "complete" else 1
 
 
 def _permission_level_name(level: int) -> str:

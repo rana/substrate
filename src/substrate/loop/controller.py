@@ -197,16 +197,20 @@ class LoopController:
             tool_results.append(result)
 
             # Add tool result to messages for next turn
-            self._messages.append({
-                "role": "assistant",
-                "content": response.content,
-                "tool_calls": [tc.to_dict() for tc in response.tool_calls],
-            })
-            self._messages.append({
-                "role": "tool",
-                "tool_call_id": result.call_id,
-                "content": str(result.output) if result.success else str(result.error),
-            })
+            self._messages.append(
+                {
+                    "role": "assistant",
+                    "content": response.content,
+                    "tool_calls": [tc.to_dict() for tc in response.tool_calls],
+                }
+            )
+            self._messages.append(
+                {
+                    "role": "tool",
+                    "tool_call_id": result.call_id,
+                    "content": str(result.output) if result.success else str(result.error),
+                }
+            )
 
         turn = Turn(
             turn_number=turn_number,
@@ -268,10 +272,12 @@ class LoopController:
         self._state = LoopState.COMPLETED
 
         # Add assistant response to messages
-        self._messages.append({
-            "role": "assistant",
-            "content": response.content,
-        })
+        self._messages.append(
+            {
+                "role": "assistant",
+                "content": response.content,
+            }
+        )
 
         turn = Turn(
             turn_number=turn_number,

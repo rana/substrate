@@ -98,9 +98,7 @@ class WorkspaceConfinementError(Exception):
     def __init__(self, path: Path, workspace_root: Path) -> None:
         self.path = path
         self.workspace_root = workspace_root
-        super().__init__(
-            f"Path '{path}' is outside workspace root '{workspace_root}'"
-        )
+        super().__init__(f"Path '{path}' is outside workspace root '{workspace_root}'")
 
 
 class ExecutionEngine:
