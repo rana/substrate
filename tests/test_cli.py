@@ -61,6 +61,7 @@ def test_rollback_to_valid_node(tmp_path: Path) -> None:
 
     # Get original node ID
     import json
+
     active_path = tmp_path / ".substrate" / "state" / "active.json"
     with active_path.open() as f:
         original_id = json.load(f)["active_node_id"]
@@ -92,6 +93,7 @@ def test_promote_marks_node(tmp_path: Path) -> None:
 
     # Get current node ID
     import json
+
     active_path = tmp_path / ".substrate" / "state" / "active.json"
     with active_path.open() as f:
         node_id = json.load(f)["active_node_id"]
@@ -112,6 +114,7 @@ def test_compare_two_nodes(tmp_path: Path) -> None:
 
     # Get original node ID
     import json
+
     active_path = tmp_path / ".substrate" / "state" / "active.json"
     with active_path.open() as f:
         node_a = json.load(f)["active_node_id"]
@@ -130,6 +133,7 @@ def test_compare_invalid_node(tmp_path: Path) -> None:
     main(["init", "--path", str(tmp_path)])
 
     import json
+
     active_path = tmp_path / ".substrate" / "state" / "active.json"
     with active_path.open() as f:
         node_a = json.load(f)["active_node_id"]

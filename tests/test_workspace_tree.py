@@ -271,9 +271,7 @@ def test_compare_nonexistent_node_fails() -> None:
         active = state.load_active()
         assert active is not None
 
-        success, message, comparison = state.compare_nodes(
-            active.active_node_id, "nonexistent"
-        )
+        success, message, comparison = state.compare_nodes(active.active_node_id, "nonexistent")
         assert not success
         assert "not found" in message
         assert comparison is None

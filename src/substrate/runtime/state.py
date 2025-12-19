@@ -476,9 +476,7 @@ class SubstrateState:
             else:
                 shutil.copy2(item, dest_item)
 
-    def _compute_diff_stats(
-        self, workspace_a: Path, workspace_b: Path
-    ) -> dict[str, list[str]]:
+    def _compute_diff_stats(self, workspace_a: Path, workspace_b: Path) -> dict[str, list[str]]:
         """Compute diff statistics between two workspaces.
 
         Args:

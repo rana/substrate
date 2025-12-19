@@ -15,6 +15,7 @@ class PermissionLevel(IntEnum):
     Level 3: Conditional delegation - actions satisfying constraints
     Level 4: Local trusted operation - broad execution, fully logged
     """
+
     OBSERVE = 0
     PER_ACTION = 1
     SCOPED_PHASE = 2
@@ -24,6 +25,7 @@ class PermissionLevel(IntEnum):
 
 class TaskMode:
     """Task modes that influence iteration behavior."""
+
     MANUAL = "manual"
     GREENFIELD = "greenfield"
     FEATURE = "feature"
@@ -37,6 +39,7 @@ class NodeRecord:
     Each node represents a concrete filesystem state with associated metadata.
     Nodes are immutable once recorded.
     """
+
     node_id: str
     parent_node_id: str | None
     created_at: str
@@ -86,6 +89,7 @@ class NodeRecord:
 @dataclass
 class ActiveState:
     """Current active workspace state."""
+
     active_node_id: str
     active_workspace_path: str
     last_updated: str
@@ -124,6 +128,7 @@ def _default_safety() -> dict[str, Any]:
 @dataclass
 class Config:
     """Substrate configuration."""
+
     project_root: str
     default_mode: str
     cli_name: str
